@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const tempMovieData = [
   {
@@ -173,7 +173,7 @@ function MovieWatched({ watched }) {
   );
 }
 
-function BoxMovies({ children }) {
+function BoxMovies({ element }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -181,21 +181,41 @@ function BoxMovies({ children }) {
       <button className="btn-toggle" onClick={() => setIsOpen((open) => !open)}>
         {isOpen ? "–" : "+"}
       </button>
-      {isOpen && children}
+      {isOpen && element}
     </div>
   );
 }
 
 function Main({ children }) {
-  // children digunakan untuk mengurangi penggunaan props
+  // children di gunakan untuk mengurangi penggunaan props
   return <main className="main">{children}</main>;
 }
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
+const API_KEY = "964fbde3";
+
 export default function App() {
-  const [movies, setMovies] = useState(tempMovieData);
+  const [movies, setMovies] = useState([]);
   const [watched, setWatched] = useState(tempWatchedData);
+
+  // useEffect(() => {
+  //   fetch(`http://www.omdbapi.com/?apikey=${API_KEY}&s=pocong`)
+  //     .then((response) => response.json())
+  //     .then((data) => setMovies(data.Search));
+  // }, []);
+
+  // menggunakan asyncronus di dalam useEffect atau function yang bersifat syncronus dan ini lebih direkomendasikan
+  useEffect(() => {
+    async function fetchDataMovies() {
+      const response = await fetch(
+        `http://www.omdbapi.com/?apikey=${API_KEY}&s=pocong`
+      );
+      const data = await response.json();
+      setMovies(data.Search);
+    }
+    fetchDataMovies();
+  }, []);
 
   return (
     <>
@@ -203,7 +223,7 @@ export default function App() {
       <NavBar>
         <Logo />
         <Search />
-        {/* menggunakan children dan ingin menggunakan prof */}
+        {/* menggunakan children dan ingin menggunakan props */}
         <NumResults movies={movies} />
       </NavBar>
       <Main>
