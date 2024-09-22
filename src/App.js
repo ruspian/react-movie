@@ -76,7 +76,7 @@ function Search() {
 function NumResults({ movies }) {
   return (
     <p className="num-results">
-      Found <strong>{movies.length}</strong> results
+      Found <strong>{movies?.length}</strong> results
     </p>
   );
 }
@@ -173,7 +173,7 @@ function MovieWatched({ watched }) {
   );
 }
 
-function BoxMovies({ element }) {
+function BoxMovies({ children }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -181,7 +181,7 @@ function BoxMovies({ element }) {
       <button className="btn-toggle" onClick={() => setIsOpen((open) => !open)}>
         {isOpen ? "–" : "+"}
       </button>
-      {isOpen && element}
+      {isOpen && children}
     </div>
   );
 }
@@ -190,6 +190,26 @@ function Main({ children }) {
   // children di gunakan untuk mengurangi penggunaan props
   return <main className="main">{children}</main>;
 }
+
+function Loading() {
+  return (
+    <div className="loader">
+      <div className="loading-bar">
+        <div className="bar"></div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorMessage({ message }) {
+  return (
+    <div className="error">
+      <span>⛔️</span>
+      {message}
+    </div>
+  );
+}
+
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
@@ -198,6 +218,10 @@ const API_KEY = "964fbde3";
 export default function App() {
   const [movies, setMovies] = useState([]);
   const [watched, setWatched] = useState(tempWatchedData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const query = "pocong";
 
   // useEffect(() => {
   //   fetch(`http://www.omdbapi.com/?apikey=${API_KEY}&s=pocong`)
@@ -207,12 +231,30 @@ export default function App() {
 
   // menggunakan asyncronus di dalam useEffect atau function yang bersifat syncronus dan ini lebih direkomendasikan
   useEffect(() => {
+    // menambahkan tampilan loading
     async function fetchDataMovies() {
-      const response = await fetch(
-        `http://www.omdbapi.com/?apikey=${API_KEY}&s=pocong`
-      );
-      const data = await response.json();
-      setMovies(data.Search);
+      // menggunakan try catch untuk menangkap error
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
+        );
+
+        // menangkap error
+        if (!response.ok) throw new Error("Maaf terjadi Error!");
+        
+
+        const data = await response.json();
+
+        // menangkap error dari kesalahan query
+        if (data.Response === "False") throw new Error(data.Error);
+
+        setMovies(data.Search);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
     }
     fetchDataMovies();
   }, []);
@@ -228,15 +270,15 @@ export default function App() {
       </NavBar>
       <Main>
         {/* cara lain mengirimkan komponen melalui props dan children */}
-        <BoxMovies element={<MovieList movies={movies} />} />
-        <BoxMovies
-          element={
-            <>
-              <WatchSummary watched={watched} />
-              <MovieWatched watched={watched} />
-            </>
-          }
-        />
+        <BoxMovies>
+          {isLoading && <Loading />}
+          {error && <ErrorMessage message={error} />}
+          {!isLoading && !error && <MovieList movies={movies} />}
+        </BoxMovies>
+        <BoxMovies>
+          <WatchSummary watched={watched} />
+          <MovieWatched watched={watched} />
+        </BoxMovies>
       </Main>
     </>
   );
