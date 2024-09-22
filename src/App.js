@@ -58,9 +58,7 @@ function Logo() {
 }
 
 // komponen search
-function Search() {
-  const [query, setQuery] = useState("");
-
+function Search({ query, setQuery }) {
   return (
     <input
       className="search"
@@ -85,9 +83,9 @@ function NavBar({ children }) {
   return <nav className="nav-bar">{children}</nav>;
 }
 
-function MovieListItems({ movie }) {
+function MovieListItems({ movie, onSelectMovie }) {
   return (
-    <li key={movie.imdbID}>
+    <li key={movie.imdbID} onClick={() => onSelectMovie(movie.imdbID)}>
       <img src={movie.Poster} alt={`${movie.Title} poster`} />
       <h3>{movie.Title}</h3>
       <div>
@@ -100,11 +98,15 @@ function MovieListItems({ movie }) {
   );
 }
 
-function MovieList({ movies }) {
+function MovieList({ movies, onSelectMovie }) {
   return (
-    <ul className="list">
+    <ul className="list list-movies">
       {movies?.map((movie) => (
-        <MovieListItems key={movie.imdbID} movie={movie} />
+        <MovieListItems
+          key={movie.imdbID}
+          movie={movie}
+          onSelectMovie={onSelectMovie}
+        />
       ))}
     </ul>
   );
@@ -186,6 +188,78 @@ function BoxMovies({ children }) {
   );
 }
 
+// menambahkan komponen movie details
+function MovieDetails({ selectedId, onCloseMovie }) {
+  const [movie, setMovie] = useState({});
+
+  // mengubah uppercase menjadi lowercase
+  const {
+    Poster: poster,
+    Title: title,
+    Year: year,
+    Runtime: runtime,
+    Genre: genre,
+    imdbRating,
+    imdbVotes: imdbVotes,
+    imdbID: imdbID,
+    Actors: actors,
+    Awards: awards,
+    BoxOffice: boxOffice,
+    Country: country,
+    DVD: dvd,
+    Director: director,
+    Plot: plot,
+  } = movie;
+
+  useEffect(() => {
+    async function getMovieDetails() {
+      const response = await fetch(
+        `http://www.omdbapi.com/?apikey=${API_KEY}&i=${selectedId}`
+      );
+      const data = await response.json();
+      setMovie(data);
+    }
+    getMovieDetails();
+    // kalau mengambil props dengan menggunakan useEffect maka props tersebut disimpan di array dependency
+  }, [selectedId]);
+
+  return (
+    <div className="details">
+      <header>
+        <button className="btn-back" onClick={onCloseMovie}>
+          &#x2715;
+        </button>
+        <img src={poster} alt={`${title} poster`} />
+        <div className="details-overview">
+          <h2>{title}</h2>
+          <p>
+            <span>Year: </span>
+            <span>{year}</span>
+          </p>
+          <p>
+            <span>Runtime: </span>
+            <span>{runtime}</span>
+          </p>
+          <p>
+            <span>Genre: </span>
+            <span>{genre}</span>
+          </p>
+          <p>
+            <span>Rating: </span>
+            <span>{imdbRating}</span>
+          </p>
+        </div>
+      </header>
+      <section>
+        <p><em>{plot}</em></p>
+          <span>Actors: {actors}</span>
+          <span>Country: {country}</span>
+          <span>Director: {director}</span>
+      </section>
+    </div>
+  );
+}
+
 function Main({ children }) {
   // children di gunakan untuk mengurangi penggunaan props
   return <main className="main">{children}</main>;
@@ -220,8 +294,21 @@ export default function App() {
   const [watched, setWatched] = useState(tempWatchedData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("pocong");
+  const [selectedMovie, setSelectedMovie] = useState(null);
 
-  const query = "pocong";
+  // menambahkan function handleSelectMovie untuk mencari id movie
+  function handleSelectMovie(id) {
+    // menutup movie details sebelumnya dengan mengklik movie yang sama
+    setSelectedMovie((selectedId) => (selectedId === id ? null : id));
+  }
+
+  // menambahkan function handleCoseMovie untuk menutup movie details
+  function handleCloseMovie() {
+    setSelectedMovie(null);
+  }
+
+  // const temQuery = "pocong";
 
   // useEffect(() => {
   //   fetch(`http://www.omdbapi.com/?apikey=${API_KEY}&s=pocong`)
@@ -236,13 +323,14 @@ export default function App() {
       // menggunakan try catch untuk menangkap error
       try {
         setIsLoading(true);
+
+        // fetch data API
         const response = await fetch(
           `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
         );
 
         // menangkap error
         if (!response.ok) throw new Error("Maaf terjadi Error!");
-        
 
         const data = await response.json();
 
@@ -256,15 +344,24 @@ export default function App() {
         setIsLoading(false);
       }
     }
+
+    if (query.length < 3) {
+      setMovies([]);
+      setError("");
+      return;
+    }
+
     fetchDataMovies();
-  }, []);
+
+    // menggunakan dependency array untuk menangani ketika query berubah
+  }, [query]);
 
   return (
     <>
       {/* mengatasi prof driling dengan children untuk mengurangi penggunaan props */}
       <NavBar>
         <Logo />
-        <Search />
+        <Search query={query} setQuery={setQuery} />
         {/* menggunakan children dan ingin menggunakan props */}
         <NumResults movies={movies} />
       </NavBar>
@@ -273,11 +370,22 @@ export default function App() {
         <BoxMovies>
           {isLoading && <Loading />}
           {error && <ErrorMessage message={error} />}
-          {!isLoading && !error && <MovieList movies={movies} />}
+          {!isLoading && !error && (
+            <MovieList movies={movies} onSelectMovie={handleSelectMovie} />
+          )}
         </BoxMovies>
         <BoxMovies>
-          <WatchSummary watched={watched} />
-          <MovieWatched watched={watched} />
+          {selectedMovie ? (
+            <MovieDetails
+              selectedId={selectedMovie}
+              onCloseMovie={handleCloseMovie}
+            />
+          ) : (
+            <>
+              <WatchSummary watched={watched} />
+              <MovieWatched watched={watched} />
+            </>
+          )}
         </BoxMovies>
       </Main>
     </>
