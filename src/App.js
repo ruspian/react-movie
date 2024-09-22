@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import StarRating from "./StarRating";
 
 const tempMovieData = [
   {
@@ -119,34 +120,34 @@ function WatchSummary({ watched }) {
 
   return (
     <div className="summary">
-      <h2>Movies you watched</h2>
+      <h2>Film Yang Telah Ditonton</h2>
       <div>
         <p>
           <span>#️⃣</span>
-          <span>{watched.length} movies</span>
+          <span>{watched.length} Film</span>
         </p>
         <p>
           <span>🎬</span>
-          <span>{avgImdbRating}</span>
+          <span>{avgImdbRating.toFixed(1)}</span>
         </p>
         <p>
           <span>🌟</span>
-          <span>{avgUserRating}</span>
+          <span>{avgUserRating.toFixed(1)}</span>
         </p>
         <p>
           <span>⏳</span>
-          <span>{avgRuntime} min</span>
+          <span>{Math.trunc(avgRuntime)} min</span>
         </p>
       </div>
     </div>
   );
 }
 
-function WatchListItems({ movie }) {
+function WatchListItems({ movie, onDeleteWatched }) {
   return (
     <li key={movie.imdbID}>
-      <img src={movie.Poster} alt={`${movie.Title} poster`} />
-      <h3>{movie.Title}</h3>
+      <img src={movie.poster} alt={`${movie.title} poster`} />
+      <h3>{movie.title}</h3>
       <div>
         <p>
           <span>🎬</span>
@@ -160,16 +161,26 @@ function WatchListItems({ movie }) {
           <span>⏳</span>
           <span>{movie.runtime} min</span>
         </p>
+        <button
+          className="btn-delete"
+          onClick={() => onDeleteWatched(movie.imdbID)}
+        >
+          x
+        </button>
       </div>
     </li>
   );
 }
 
-function MovieWatched({ watched }) {
+function MovieWatched({ watched, onDeleteWatched }) {
   return (
     <ul className="list">
       {watched.map((movie) => (
-        <WatchListItems key={movie.imdbID} movie={movie} />
+        <WatchListItems
+          key={movie.imdbID}
+          movie={movie}
+          onDeleteWatched={onDeleteWatched}
+        />
       ))}
     </ul>
   );
@@ -189,8 +200,15 @@ function BoxMovies({ children }) {
 }
 
 // menambahkan komponen movie details
-function MovieDetails({ selectedId, onCloseMovie }) {
+function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
   const [movie, setMovie] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [userRating, setUserRating] = useState("");
+
+  const isWatched = watched.some((movie) => movie.imdbID === selectedId);
+  const watchedUserRating = watched.find(
+    (movie) => movie.imdbID === selectedId
+  )?.userRating;
 
   // mengubah uppercase menjadi lowercase
   const {
@@ -211,51 +229,114 @@ function MovieDetails({ selectedId, onCloseMovie }) {
     Plot: plot,
   } = movie;
 
+  function handleAddWatched() {
+    const newWatchMovie = {
+      imdbID: selectedId,
+      title,
+      poster,
+      year,
+      runtime: Number(runtime.split(" ").at(0)),
+      genre,
+      imdbRating,
+      imdbVotes: Number(imdbRating),
+      imdbID: imdbID,
+      actors,
+      awards,
+      boxOffice,
+      country,
+      dvd,
+      director,
+      plot,
+      userRating: Number(userRating),
+    };
+    onAddWatched(newWatchMovie);
+    onCloseMovie();
+  }
+
   useEffect(() => {
     async function getMovieDetails() {
+      setIsLoading(true);
       const response = await fetch(
         `http://www.omdbapi.com/?apikey=${API_KEY}&i=${selectedId}`
       );
       const data = await response.json();
       setMovie(data);
+      setIsLoading(false);
     }
     getMovieDetails();
     // kalau mengambil props dengan menggunakan useEffect maka props tersebut disimpan di array dependency
   }, [selectedId]);
 
+  // mendapatkan data film untuk judul page
+  useEffect(() => {
+    if (!title) return;
+    document.title = `PopMovie | ${title}`;
+
+    // mengembalikan judul page ketika props title berubah
+    return function () {
+      document.title = "PopMovie";
+    }
+  }, [title]);
+
   return (
     <div className="details">
-      <header>
-        <button className="btn-back" onClick={onCloseMovie}>
-          &#x2715;
-        </button>
-        <img src={poster} alt={`${title} poster`} />
-        <div className="details-overview">
-          <h2>{title}</h2>
-          <p>
-            <span>Year: </span>
-            <span>{year}</span>
-          </p>
-          <p>
-            <span>Runtime: </span>
-            <span>{runtime}</span>
-          </p>
-          <p>
-            <span>Genre: </span>
-            <span>{genre}</span>
-          </p>
-          <p>
-            <span>Rating: </span>
-            <span>{imdbRating}</span>
-          </p>
-        </div>
-      </header>
-      <section>
-        <p><em>{plot}</em></p>
-          <span>Actors: {actors}</span>
-          <span>Country: {country}</span>
-          <span>Director: {director}</span>
-      </section>
+      {isLoading ? (
+        <Loading />
+      ) : (
+        <>
+          <header>
+            <button className="btn-back" onClick={onCloseMovie}>
+              &#x2715;
+            </button>
+            <img src={poster} alt={`${title} poster`} />
+            <div className="details-overview">
+              <h2>{title}</h2>
+              <p>
+                <span>Year: </span>
+                <span>{year}</span>
+              </p>
+              <p>
+                <span>Runtime: </span>
+                <span>{runtime}</span>
+              </p>
+              <p>
+                <span>Genre: </span>
+                <span>{genre}</span>
+              </p>
+              <p>
+                <span>Rating: </span>
+                <span>{imdbRating}</span>
+              </p>
+            </div>
+          </header>
+          <section>
+            <p>
+              <em>{plot}</em>
+            </p>
+            <span>Actors: {actors}</span>
+            <span>Country: {country}</span>
+            <span>Director: {director}</span>
+
+            <div className="rating">
+              {!isWatched ? (
+                <>
+                  <StarRating max={10} size={24} onSetRating={setUserRating} />
+                  {userRating > 0 && (
+                    <button className="btn-add" onClick={handleAddWatched}>
+                      + Add to Watched
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p>
+                  Anda sudah menambahkan film ini ke daftar di tonton dengan
+                  rating {watchedUserRating} / 10
+                </p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -291,7 +372,7 @@ const API_KEY = "964fbde3";
 
 export default function App() {
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState(tempWatchedData);
+  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("pocong");
@@ -308,6 +389,14 @@ export default function App() {
     setSelectedMovie(null);
   }
 
+  function handleDeleteWatched(id) {
+    setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
+  }
+
+  function handleAddWatched(movie) {
+    setWatched((watched) => [...watched, movie]);
+  }
+
   // const temQuery = "pocong";
 
   // useEffect(() => {
@@ -318,6 +407,10 @@ export default function App() {
 
   // menggunakan asyncronus di dalam useEffect atau function yang bersifat syncronus dan ini lebih direkomendasikan
   useEffect(() => {
+    // memperbaiki pencarian movie
+    const controller = new AbortController();
+
+
     // menambahkan tampilan loading
     async function fetchDataMovies() {
       // menggunakan try catch untuk menangkap error
@@ -326,7 +419,9 @@ export default function App() {
 
         // fetch data API
         const response = await fetch(
-          `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
+          `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`,
+          // mengontrol cancel request pada saat perubahan state 
+          { signal: controller.signal }
         );
 
         // menangkap error
@@ -338,7 +433,9 @@ export default function App() {
         if (data.Response === "False") throw new Error(data.Error);
 
         setMovies(data.Search);
+        setError("");
       } catch (error) {
+        if (error.name === "AbortError") return;
         setError(error.message);
       } finally {
         setIsLoading(false);
@@ -352,7 +449,11 @@ export default function App() {
     }
 
     fetchDataMovies();
-
+    
+    // memanggil fungsi abort controller untuk menghentikan request
+    return function () {
+      controller.abort();
+    }
     // menggunakan dependency array untuk menangani ketika query berubah
   }, [query]);
 
@@ -379,11 +480,16 @@ export default function App() {
             <MovieDetails
               selectedId={selectedMovie}
               onCloseMovie={handleCloseMovie}
+              onAddWatched={handleAddWatched}
+              watched={watched}
             />
           ) : (
             <>
               <WatchSummary watched={watched} />
-              <MovieWatched watched={watched} />
+              <MovieWatched
+                watched={watched}
+                onDeleteWatched={handleDeleteWatched}
+              />
             </>
           )}
         </BoxMovies>
